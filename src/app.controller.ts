@@ -23,11 +23,23 @@ export class AppController {
         HttpStatus.BAD_REQUEST
       );
     }
+    if (identityRequest.email === "") {
+      throw new HttpException(
+        { message: "Incorrect email format." },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    if (identityRequest.phoneNumber === "") {
+      throw new HttpException(
+        { message: "Incorrect phone number format." },
+        HttpStatus.BAD_REQUEST
+      );
+    }
     const emailMatchingContacts: ContactEntity[] = await this.appService.findAllByEmail(identityRequest.email);
     const phoneMatchingContacts: ContactEntity[] = await this.appService.findAllByPhoneNumber(identityRequest.phoneNumber);
     await this.checkAndCreateNewContact(identityRequest.phoneNumber, identityRequest.email, emailMatchingContacts, phoneMatchingContacts);
     let primaryContact: ContactEntity = await this.getPrimaryContact(identityRequest.email, identityRequest.phoneNumber);
-    await this.checkAndLinkContacts(emailMatchingContacts, phoneMatchingContacts, primaryContact);
+    primaryContact = await this.checkAndLinkContacts(emailMatchingContacts, phoneMatchingContacts, primaryContact);
     return this.buildIdentifyResponse(primaryContact);
   }
 
@@ -102,10 +114,11 @@ export class AppController {
     if (emailMatchingContacts !== null) {
       for (const contact of emailMatchingContacts) {
         if (contact.id !== primaryContact.id) {
-          if (contact.linkedId !== primaryContact.id) {
-            idsSet.add(contact.linkedId);
+          if (contact.linkedId != null && contact.linkedId !== primaryContact.id) {
             linkedIdsSet.add(contact.linkedId);
+            idsSet.add(contact.linkedId);
           }
+          idsSet.add(contact.id);
           linkedIdsSet.add(contact.id);
         }
       }
@@ -113,21 +126,32 @@ export class AppController {
     if (phoneMatchingContacts !== null) {
       for (const contact of phoneMatchingContacts) {
         if (contact.id !== primaryContact.id) {
-          if (contact.linkedId !== primaryContact.id) {
-            idsSet.add(contact.linkedId);
+          if (contact.linkedId != null && contact.linkedId !== primaryContact.id) {
             linkedIdsSet.add(contact.linkedId);
+            idsSet.add(contact.linkedId);
           }
+          idsSet.add(contact.id);
           linkedIdsSet.add(contact.id);
         }
       }
     }
-    let linkedContacts = [];
+    let linkedContacts: ContactEntity[] = [];
     if (linkedIdsSet.size > 0) {
       linkedContacts = await this.appService.getContactsByLinkedIdAndNotIds([...linkedIdsSet.values()]);
     }
-    let parentContacts = [];
+    let parentContacts: ContactEntity[] = [];
     if (idsSet.size > 0) {
       parentContacts = await this.appService.getContactsByIds([...idsSet.values()]);
+    }
+    if (linkedContacts.length > 0 && linkedContacts.at(0).id < primaryContact.id && linkedContacts.at(0).linkPrecedence === "primary") {
+      const temp = linkedContacts.shift();
+      linkedContacts.unshift(primaryContact);
+      primaryContact = temp;
+    }
+    if (parentContacts.length > 0 && parentContacts.at(0).id < primaryContact.id && parentContacts.at(0).linkPrecedence === "primary") {
+      const temp = parentContacts.shift();
+      parentContacts.unshift(primaryContact);
+      primaryContact = temp;
     }
     for (const contact of linkedContacts) {
       contact.linkedId = primaryContact.id;
@@ -140,6 +164,7 @@ export class AppController {
       updatedContactList.push(contact);
     }
     await this.appService.saveContactsBulk(updatedContactList);
+    return primaryContact;
   }
 
   private async getPrimaryContact(email: string, phoneNumber: string) {

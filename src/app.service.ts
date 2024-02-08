@@ -64,13 +64,13 @@ export class AppService {
     if (ids == null || ids.length == 0) {
       return [];
     }
-    return await this.contactRepository.find({ where: { linkedId: In(ids) } });
+    return await this.contactRepository.find({ where: { linkedId: In(ids) }, order: { createdAt: "asc" } });
   }
 
   async getContactsByIds(ids: number[]) {
     if (ids == null || ids.length == 0) {
       return [];
     }
-    return await this.contactRepository.find({ where: { id: In(ids) } });
+    return await this.contactRepository.find({ where: { id: In(ids) }, order: { createdAt: "asc" } });
   }
 }
