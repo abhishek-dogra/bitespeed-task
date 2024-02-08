@@ -99,22 +99,26 @@ export class AppController {
     const linkedIdsSet = new Set<number>();
     const idsSet = new Set<number>();
     const ignoreIdSet = [];
-    for (const contact of emailMatchingContacts) {
-      if (contact.id !== primaryContact.id) {
-        if (contact.linkedId !== primaryContact.id) {
-          idsSet.add(contact.linkedId);
-          linkedIdsSet.add(contact.linkedId);
+    if (emailMatchingContacts !== null) {
+      for (const contact of emailMatchingContacts) {
+        if (contact.id !== primaryContact.id) {
+          if (contact.linkedId !== primaryContact.id) {
+            idsSet.add(contact.linkedId);
+            linkedIdsSet.add(contact.linkedId);
+          }
+          linkedIdsSet.add(contact.id);
         }
-        linkedIdsSet.add(contact.id);
       }
     }
-    for (const contact of phoneMatchingContacts) {
-      if (contact.id !== primaryContact.id) {
-        if (contact.linkedId !== primaryContact.id) {
-          idsSet.add(contact.linkedId);
-          linkedIdsSet.add(contact.linkedId);
+    if (phoneMatchingContacts !== null) {
+      for (const contact of phoneMatchingContacts) {
+        if (contact.id !== primaryContact.id) {
+          if (contact.linkedId !== primaryContact.id) {
+            idsSet.add(contact.linkedId);
+            linkedIdsSet.add(contact.linkedId);
+          }
+          linkedIdsSet.add(contact.id);
         }
-        linkedIdsSet.add(contact.id);
       }
     }
     let linkedContacts = [];
