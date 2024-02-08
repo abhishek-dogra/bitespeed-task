@@ -18,8 +18,7 @@ import { ContactEntity } from "./contact.entity";
         database: configService.get("DATABASE"),
         entities: [
           ContactEntity
-        ],
-        logging: true
+        ]
       }),
       inject: [ConfigService]
     }), TypeOrmModule.forFeature([
