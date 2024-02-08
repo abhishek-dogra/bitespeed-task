@@ -11,8 +11,8 @@ import { ContactEntity } from "./contact.entity";
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         type: "postgres",
-        host: configService.get("HOST"),
-        port: +configService.get("PORT"),
+        host: configService.get("DB_HOST"),
+        port: +configService.get("DB_PORT"),
         username: configService.get("USERNAME"),
         password: configService.get("PASSWORD"),
         database: configService.get("DATABASE"),
