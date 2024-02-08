@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { FindOptionsWhere, Repository } from "typeorm";
+import { FindOptionsWhere, In, Not, Repository } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ContactEntity } from "./contact.entity";
 
@@ -27,19 +27,6 @@ export class AppService {
     return await this.contactRepository.findOne({ where: whereClause, order: { createdAt: "asc" } });
   }
 
-  async findByEmailOrPhoneNumber(phoneNumber: string, email: string) {
-    return await this.contactRepository.find({ where: [{ phoneNumber: phoneNumber }, { email: email }] });
-  }
-
-  async findOnePrimaryByEmailOrPhoneNumber(phoneNumber: string, email: string) {
-    return await this.contactRepository.findOne({
-      where: [{
-        phoneNumber: phoneNumber,
-        linkPrecedence: "primary"
-      }, { email: email, linkPrecedence: "primary" }]
-    });
-  }
-
   async findContactById(id: number) {
     return await this.contactRepository.findOne({
       where: { id: id }
@@ -53,28 +40,6 @@ export class AppService {
 
   async getContactsByLinkedId(id: number) {
     return await this.contactRepository.find({ where: { linkedId: id } });
-  }
-
-  async findOneByEmailAndPhoneNumber(phoneNumber: string, email: string) {
-    const whereClause: FindOptionsWhere<ContactEntity> = {};
-    whereClause.phoneNumber = phoneNumber;
-    whereClause.email = email;
-    return await this.contactRepository.findOne({ where: whereClause });
-  }
-
-  async findAllByEmailAndPhone(phoneNumber: string, email: string) {
-    const whereClause: FindOptionsWhere<ContactEntity>[] = [];
-    if (phoneNumber != null) {
-      whereClause.push({ phoneNumber: phoneNumber });
-    }
-    if (email != null) {
-      whereClause.push({ email: email });
-    }
-    return await this.contactRepository.find({ where: whereClause, order: { createdAt: "asc" } });
-  }
-
-  async saveContact(contact: ContactEntity) {
-    return await this.contactRepository.save(contact);
   }
 
   async findAllByEmail(email: string) {
@@ -93,5 +58,19 @@ export class AppService {
 
   async saveContactsBulk(contactList: ContactEntity[]) {
     return await this.contactRepository.save(contactList);
+  }
+
+  async getContactsByLinkedIdAndNotIds(ids: number[]) {
+    if (ids == null || ids.length == 0) {
+      return [];
+    }
+    return await this.contactRepository.find({ where: { linkedId: In(ids) } });
+  }
+
+  async getContactsByIds(ids: number[]) {
+    if (ids == null || ids.length == 0) {
+      return [];
+    }
+    return await this.contactRepository.find({ where: { id: In(ids) } });
   }
 }

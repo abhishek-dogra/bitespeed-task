@@ -31,56 +31,6 @@ export class AppController {
     return this.buildIdentifyResponse(primaryContact);
   }
 
-  private checkNewInfoAndLink(contacts: ContactEntity[], email: string, phoneNumber: string) {
-    let linkedId = null;
-    let isNewEmail = true;
-    let isNewPhone = true;
-    let emailPrimaryContact: ContactEntity = null;
-    let phonePrimaryContact: ContactEntity = null;
-    let linkedContact: ContactEntity = null;
-    let primaryContact: ContactEntity = null;
-    for (const contact of contacts) {
-      if (contact.email === email) {
-        isNewEmail = false;
-      }
-      if (contact.phoneNumber === phoneNumber) {
-        isNewPhone = false;
-      }
-      if (linkedId == null && contact.linkPrecedence === "primary") {
-        linkedId = contact.id;
-        primaryContact = contact;
-      }
-      if (contact.linkPrecedence === "primary" && contact.email == email) {
-        emailPrimaryContact = contact;
-        if (phonePrimaryContact != null && phonePrimaryContact.email != emailPrimaryContact.email && phonePrimaryContact.phoneNumber != emailPrimaryContact.phoneNumber) {
-          emailPrimaryContact.linkedId = phonePrimaryContact.id;
-          linkedContact = emailPrimaryContact;
-          primaryContact = phonePrimaryContact;
-        }
-      }
-      if (contact.linkPrecedence === "primary" && contact.phoneNumber == phoneNumber) {
-        phonePrimaryContact = contact;
-        if (emailPrimaryContact != null && phonePrimaryContact.email != emailPrimaryContact.email && phonePrimaryContact.phoneNumber != emailPrimaryContact.phoneNumber) {
-          phonePrimaryContact.linkedId = emailPrimaryContact.id;
-          linkedContact = phonePrimaryContact;
-          primaryContact = emailPrimaryContact;
-        }
-      }
-    }
-    if (linkedId == null && contacts.length > 0) {
-      linkedId = contacts.at(0).linkedId;
-    }
-    if (linkedContact != null) {
-      linkedId = linkedContact.linkedId;
-    }
-    return {
-      isNewInfo: (isNewEmail || isNewPhone),
-      linkedId: linkedId,
-      linkedContact: linkedContact,
-      primaryContact: primaryContact
-    };
-  }
-
   private async buildIdentifyResponse(primaryContact: ContactEntity) {
     const linkedContacts = await this.appService.getContactsByLinkedId(primaryContact.id);
     const emailSet = new Set<string>();
@@ -146,19 +96,44 @@ export class AppController {
 
   private async checkAndLinkContacts(emailMatchingContacts: ContactEntity[], phoneMatchingContacts: ContactEntity[], primaryContact: ContactEntity) {
     const updatedContactList = [];
+    const linkedIdsSet = new Set<number>();
+    const idsSet = new Set<number>();
+    const ignoreIdSet = [];
     for (const contact of emailMatchingContacts) {
-      if (contact.id !== primaryContact.id && contact.linkedId == null) {
-        contact.linkedId = primaryContact.id;
-        contact.linkPrecedence = "secondary";
-        updatedContactList.push(contact);
+      if (contact.id !== primaryContact.id) {
+        if (contact.linkedId !== primaryContact.id) {
+          idsSet.add(contact.linkedId);
+          linkedIdsSet.add(contact.linkedId);
+        }
+        linkedIdsSet.add(contact.id);
       }
     }
     for (const contact of phoneMatchingContacts) {
-      if (contact.id !== primaryContact.id && contact.linkedId == null) {
-        contact.linkedId = primaryContact.id;
-        contact.linkPrecedence = "secondary";
-        updatedContactList.push(contact);
+      if (contact.id !== primaryContact.id) {
+        if (contact.linkedId !== primaryContact.id) {
+          idsSet.add(contact.linkedId);
+          linkedIdsSet.add(contact.linkedId);
+        }
+        linkedIdsSet.add(contact.id);
       }
+    }
+    let linkedContacts = [];
+    if (linkedIdsSet.size > 0) {
+      linkedContacts = await this.appService.getContactsByLinkedIdAndNotIds([...linkedIdsSet.values()]);
+    }
+    let parentContacts = [];
+    if (idsSet.size > 0) {
+      parentContacts = await this.appService.getContactsByIds([...idsSet.values()]);
+    }
+    for (const contact of linkedContacts) {
+      contact.linkedId = primaryContact.id;
+      contact.linkPrecedence = "secondary";
+      updatedContactList.push(contact);
+    }
+    for (const contact of parentContacts) {
+      contact.linkedId = primaryContact.id;
+      contact.linkPrecedence = "secondary";
+      updatedContactList.push(contact);
     }
     await this.appService.saveContactsBulk(updatedContactList);
   }
